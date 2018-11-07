@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>@theia/plugin</title>
+	<title>Theia Plug-in API</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="assets/css/main.css">
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="index.html" class="title">@theia/plugin</a>
+					<a href="index.html" class="title">Theia Plug-in API</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -54,7 +54,7 @@
 					<a href="globals.html">Globals</a>
 				</li>
 			</ul>
-			<h1> @theia/plugin</h1>
+			<h1> Theia Plug-in API</h1>
 		</div>
 	</div>
 </header>
@@ -62,93 +62,335 @@
 	<div class="row">
 		<div class="col-8 col-content">
 			<div class="tsd-panel tsd-typography">
-				<h1 id="theia-cloud-desktop-ide">Theia - Cloud &amp; Desktop IDE</h1>
-				<p><a href="https://github.com/theia-ide/theia/labels/help%20wanted"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome"></a>
-					<a href="https://gitter.im/theia-ide/theia"><img src="https://img.shields.io/badge/chat-on%20gitter-blue.svg" alt="Gitter"></a>
-					<a href="https://travis-ci.org/theia-ide/theia"><img src="https://travis-ci.org/theia-ide/theia.svg?branch=master" alt="Build Status"></a>
-					<a href="https://ci.appveyor.com/project/kittaakos/theia/branch/master"><img src="https://ci.appveyor.com/api/projects/status/02s4d40orokl3njl/branch/master?svg=true" alt="Build status"></a>
-					<a href="https://github.com/theia-ide/theia/labels/question"><img src="https://img.shields.io/badge/Open-questions-pink.svg?style=flat-square" alt="Open questions"></a>
-				<a href="https://github.com/theia-ide/theia/labels/bug"><img src="https://img.shields.io/badge/Open-bugs-red.svg?style=flat-square" alt="Open bugs"></a></p>
-				<p>Theia is an extensible platform to develop full-fledged multi-language Cloud &amp; Desktop IDE-like products with state-of-the-art web technologies.</p>
-				<p><img src="https://user-images.githubusercontent.com/372735/33182625-0f6575f0-d075-11e7-8ec7-53801e3892bd.jpg" alt="Theia"></p>
+				<h1 id="introduction">Introduction</h1>
+				<h2 id="theia-plugin-system-description">Theia Plugin system description</h2>
+				<h3 id="plugin-api">Plugin API</h3>
+				<p>Namespace for dealing with installed plug-ins. Plug-ins are represented
+					by a Plugin-interface which enables reflection on them.
+					Plug-in writers can provide APIs to other plug-ins by returning their API public
+				surface from the <code>start</code>-call.</p>
+				<p>For example some plugin exports it&#39;s API:</p>
+				<pre><code class="language-javascript"><span class="hljs-keyword">export</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">start</span>(<span class="hljs-params"></span>) </span>{
+    <span class="hljs-keyword">let</span> api = {
+        sum(a, b) {
+            <span class="hljs-keyword">return</span> a + b;
+        },
+        mul(a, b) {
+            <span class="hljs-keyword">return</span> a * b;
+        }
+    };
+    <span class="hljs-comment">// 'export' public api-surface</span>
+    <span class="hljs-keyword">return</span> api;
+}</code></pre>
+				<p>Another plugin can use that API:</p>
+				<pre><code class="language-javascript"><span class="hljs-keyword">let</span> mathExt = theia.plugins.getPlugin(<span class="hljs-string">'genius.math'</span>);
+<span class="hljs-keyword">let</span> importedApi = mathExt.exports;
+<span class="hljs-built_in">console</span>.log(importedApi.mul(<span class="hljs-number">42</span>, <span class="hljs-number">1</span>));</code></pre>
+				<p>Also plugin API allows access to plugin <code>package.json</code> content.</p>
+				<p>Example:</p>
+				<pre><code class="language-javascript"><span class="hljs-keyword">const</span> fooPlugin = plugins.getPlugin(<span class="hljs-string">'publisher.plugin_name'</span>);
+<span class="hljs-keyword">const</span> fooPluginPackageJson = fooPlugin.packageJSON;
+<span class="hljs-built_in">console</span>.log(fooPluginPackageJson.someField);</code></pre>
+				<h3 id="command-api">Command API</h3>
+				<p> A command is a unique identifier of a function which
+					can be executed by a user via a keyboard shortcut, a
+				menu action or directly.</p>
+				<p>Commands can be added using the <a href="#commands.registerCommand">registerCommand</a> and
+					<a href="#commands.registerTextEditorCommand">registerTextEditorCommand</a> functions.
+				Registration can be split in two step: first register command without handler, second register handler by command id.</p>
+				<p>Any contributed command are available to any plugin, command can be invoked by <a href="#commands.executeCommand">executeCommand</a> function.</p>
+				<p>Simple example that register command:</p>
+				<pre><code class="language-typescript">theia.commands.registerCommand({id:<span class="hljs-string">'say.hello.command'</span>}, <span class="hljs-function"><span class="hljs-params">()</span>=&gt;</span>{
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Hello World!"</span>);
+});</code></pre>
+				<p>Simple example that invoke command:</p>
+				<pre><code class="language-typescript">theia.commands.executeCommand(<span class="hljs-string">'core.about'</span>);</code></pre>
+				<h3 id="window">window</h3>
+				<p>Common namespace for dealing with window and editor, showing messages and user input.</p>
+				<h4 id="quick-pick">Quick Pick</h4>
+				<p>Function to ask user select some value from the list.</p>
+				<p>Example of using:</p>
+				<pre><code class="language-typescript"><span class="hljs-comment">//configure quick pick options</span>
+ <span class="hljs-keyword">const</span> option: theia.QuickPickOptions = {
+        machOnDescription: <span class="hljs-literal">true</span>,
+        machOnDetail: <span class="hljs-literal">true</span>,
+        canPickMany: <span class="hljs-literal">false</span>,
+        placeHolder: <span class="hljs-string">"Select string:"</span>,
+        onDidSelectItem: <span class="hljs-function">(<span class="hljs-params">item</span>) =&gt;</span> <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Item <span class="hljs-subst">${item}</span> is selected`</span>)
+    };
+ <span class="hljs-comment">// call Theia api to show quick pick</span>
+theia.window.showQuickPick([<span class="hljs-string">"foo"</span>, <span class="hljs-string">"bar"</span>, <span class="hljs-string">"foobar"</span>], option).then(<span class="hljs-function">(<span class="hljs-params">val: <span class="hljs-built_in">string</span>[] | <span class="hljs-literal">undefined</span></span>) =&gt;</span> {
+        <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`Quick Pick Selected: <span class="hljs-subst">${val}</span>`</span>);
+    });</code></pre>
+				<h4 id="input-box">Input Box</h4>
+				<p>Function to ask user for input.</p>
+				<p>Example of using:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> option: theia.InputBoxOptions = {
+    prompt:<span class="hljs-string">"Hello from Plugin"</span>,
+    placeHolder:<span class="hljs-string">"Type text there"</span>,
+    ignoreFocusOut: <span class="hljs-literal">false</span>,
+    password: <span class="hljs-literal">false</span>,
+    value:<span class="hljs-string">"Default value"</span>
+};
+theia.window.showInputBox(option).then(<span class="hljs-function">(<span class="hljs-params">s: <span class="hljs-built_in">string</span> | <span class="hljs-literal">undefined</span></span>) =&gt;</span> {
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-keyword">typeof</span> s !== <span class="hljs-string">'undefined'</span>? s : <span class="hljs-string">"Input was canceled"</span>);
+});</code></pre>
+				<h4 id="notification-api">Notification API</h4>
+				<p> A notification shows an information message to users.
+				Optionally provide an array of items which will be presented as clickable buttons.</p>
+				<p> Notifications can be shown using the <a href="#window.showInformationMessage">showInformationMessage</a>,
+				<a href="#window.showWarningMessage">showWarningMessage</a> and <a href="#window.showErrorMessage">showErrorMessage</a> functions.</p>
+				<p>Simple example that show an information message:</p>
+				<pre><code class="language-typescript">theia.window.showInformationMessage(<span class="hljs-string">'Information message'</span>);</code></pre>
+				<p>Simple example that show an information message with buttons:</p>
+				<pre><code class="language-typescript">theia.window.showInformationMessage(<span class="hljs-string">'Information message'</span>, <span class="hljs-string">'Btn1'</span>, <span class="hljs-string">'Btn2'</span>).then(<span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> {
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Click button"</span>, result);
+});</code></pre>
+				<h4 id="window-state-api">Window State API</h4>
+				<p>It is possible to track state of the IDE window inside a plugin. Window state is defined as:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">interface</span> WindowState {
+    readonly focused: <span class="hljs-built_in">boolean</span>;
+}</code></pre>
+				<p>To read a state on demand one can use readonly variable:</p>
+				<pre><code class="language-typescript">theia.window.state</code></pre>
+				<p>To track window activity subscribe on <code>onDidChangeWindowState</code> event:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> disposable = theia.window.onDidChangeWindowState(<span class="hljs-function">(<span class="hljs-params">windowState: theia.WindowState</span>) =&gt;</span> {
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Window focus changed: '</span>, windowState.focused);
+});</code></pre>
+				<h4 id="status-bar-api">Status Bar API</h4>
+				<p> A status bar shows a message to users and supports icon substitution.</p>
+				<p> Status bar message can be shown using the <a href="#window.setStatusBarMessage">setStatusBarMessage</a> and
+				<a href="#window.createStatusBarItem">createStatusBarItem</a> functions.</p>
+				<p>Simple example that show a status bar message:</p>
+				<pre><code class="language-typescript">theia.window.setStatusBarMessage(<span class="hljs-string">'test status bar item'</span>);</code></pre>
+				<p>Simple example that show a status bar message with statusBarItem:</p>
+				<pre><code class="language-typescript">  <span class="hljs-keyword">const</span> item = theia.window.createStatusBarItem(theia.StatusBarAlignment.Right, <span class="hljs-number">99</span>);
+        item.text = <span class="hljs-string">'test status bar item'</span>;
+        item.show();</code></pre>
+				<h4 id="output-channel-api">Output channel API</h4>
+				<p> It is possible to show a container for readonly textual information:</p>
+				<pre><code class="language-typescript">   <span class="hljs-keyword">const</span> channel = theia.window.createOutputChannel(<span class="hljs-string">'test channel'</span>);
+         channel.appendLine(<span class="hljs-string">'test output'</span>);
+</code></pre>
+				<h4 id="environment-api">Environment API</h4>
+				<p>Environment API allows reading of environment variables and query parameters of the IDE.</p>
+				<p>To get an environment variable by name one can use:</p>
+				<pre><code class="language-typescript">theia.env.getEnvVariable(<span class="hljs-string">'NAME_OF_ENV_VARIABLE'</span>).then(<span class="hljs-function"><span class="hljs-params">value</span> =&gt;</span> {
+    <span class="hljs-comment">// process the value here</span>
+}</code></pre>
+				<p>In case if environment variable doesn&#39;t exist <code>undefined</code> will be returned.</p>
+				<p>Also this part of API exposes all query parameters (already URI decoded) with which IDE page is loaded. One can get a query parameter by name:</p>
+				<pre><code class="language-typescript">theia.env.getQueryParameter(<span class="hljs-string">'NAME_OF_QUERY_PARAMETER'</span>);</code></pre>
+				<p>In case if query parameter doesn&#39;t exist <code>undefined</code> will be returned.</p>
+				<p>Or it is possible to get a map of all query parameters:</p>
+				<pre><code class="language-typescript">theia.env.getQueryParameters();</code></pre>
+				<p>Note, that it is possible to have an array of values for single name, because it could be specified more than one time (for example <code>localhost:3000?foo=bar&amp;foo=baz</code>).</p>
+				<h3 id="terminal">Terminal</h3>
+				<p>Function to create new terminal with specific arguments:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> terminal = theia.window.createTerminal(<span class="hljs-string">"Bash terminal"</span>, <span class="hljs-string">"/bin/bash"</span>, shellArgs: [<span class="hljs-string">"-l"</span>]);</code></pre>
+				<p>Where are:</p>
 				<ul>
-					<li><a href="#website"><strong>Website</strong></a></li>
-					<li><a href="#scope"><strong>Scope</strong></a></li>
-					<li><a href="#getting-started"><strong>Getting Started</strong></a></li>
-					<li><a href="#contributing"><strong>Contributing</strong></a></li>
-					<li><a href="#feedback"><strong>Feedback</strong></a></li>
-					<li><a href="#roadmap"><strong>Roadmap</strong></a></li>
-					<li><a href="#license"><strong>License</strong></a></li>
+					<li>first argument - terminal&#39;s name.</li>
+					<li>second argument - path to the executable shell.</li>
+					<li>third argument - arguments to configure executable shell.</li>
 				</ul>
-				<h2 id="website">Website</h2>
-				<p><a href="http://www.theia-ide.org">Visit the Theia website</a> for more <a href="http://www.theia-ide.org/doc">documentation</a>.</p>
-				<h2 id="scope">Scope</h2>
+				<p>You can create terminal with specific options:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> options: theia.TerminalOptions {
+    name: <span class="hljs-string">"Bash terminal"</span>,
+    shellPath: <span class="hljs-string">"/bin/bash"</span>;
+    shellArgs: [<span class="hljs-string">"-l"</span>];
+    cwd: <span class="hljs-string">"/projects"</span>;
+    env: { <span class="hljs-string">"TERM"</span>: <span class="hljs-string">"screen"</span> };
+};</code></pre>
+				<p>Where are:</p>
 				<ul>
-					<li>Establish a platform to build IDE-like products</li>
-					<li>Provide the end-user with a full-fledged multi-language IDE  (not just a smart editor)</li>
-					<li>Support equally the paradigm of Cloud IDE and Desktop IDE</li>
-					<li>Provide support for multiple languages via the language and debug server protocols</li>
-					<li>Provide modern GUI with javascript UI libraries</li>
+					<li>&quot;shellPath&quot; - path to the executable shell, for example &quot;/bin/bash&quot;, &quot;bash&quot;, &quot;sh&quot; or so on.</li>
+					<li>&quot;shellArgs&quot; - shell command arguments, for example without login: &quot;-l&quot;. If you defined shell command &quot;/bin/bash&quot; and set up shell arguments &quot;-l&quot; than will be created terminal process with command &quot;/bin/bash -l&quot;. And client side will connect to stdin/stdout of this process to interaction with user.</li>
+					<li>&quot;cwd&quot; - current working directory;</li>
+					<li>&quot;env&quot;- enviroment variables for terminal process, for example TERM - identifier terminal window capabilities.</li>
 				</ul>
-				<h2 id="getting-started">Getting Started</h2>
-				<p>Here you can find guides and examples for common scenarios:</p>
+				<p>Function to create new terminal with defined theia.TerminalOptions described above:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> terminal = theia.window.createTerminal(options);</code></pre>
+				<p>Created terminal is not attached to the panel. To apply created terminal to the panel use method &quot;show&quot;:</p>
+				<pre><code class="language-typescript">terminal.show();</code></pre>
+				<p>To hide panel with created terminal use method &quot;hide&quot;;</p>
+				<pre><code class="language-typescript">terminal.hide();</code></pre>
+				<p>Send text to the terminal:</p>
+				<pre><code class="language-typescript">terminal.sendText(<span class="hljs-string">"Hello, Theia!"</span>, <span class="hljs-literal">false</span>);</code></pre>
+				<p>Where are:</p>
 				<ul>
-					<li><a href="http://www.theia-ide.org/doc/Authoring_Extensions.html">Develop a new Theia extension</a></li>
-					<li>Develop a new Theia application for <a href="examples/browser/package.json">Cloud</a> or <a href="examples/electron/package.json">Desktop</a> with <a href="dev-packages/cli/README.md">Theia CLI</a></li>
-					<li><a href="https://github.com/theia-ide/theia-apps#theia-docker">Run Theia IDE for Web Developers with Docker</a></li>
-					<li><a href="https://github.com/theia-ide/yangster-electron">Package a desktop Theia application with Electron</a></li>
+					<li>first argument - text content.</li>
+					<li>second argument - in case true, terminal will apply new line after the text, otherwise will send only the text.</li>
 				</ul>
-				<h2 id="contributing">Contributing</h2>
-				<p>Read below to learn how to take part in improving Theia:</p>
+				<p>Distroy terminal:</p>
+				<pre><code class="language-typescript">terminal.dispose();</code></pre>
+				<p>Subscribe to close terminal event:</p>
+				<pre><code class="language-typescript">theia.window.onDidCloseTerminal(<span class="hljs-function">(<span class="hljs-params">term</span>) =&gt;</span> {
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Terminal closed."</span>);
+});</code></pre>
+				<p>Detect destroying terminal by Id:</p>
+				<pre><code class="language-typescript">terminal.processId.then(<span class="hljs-function"><span class="hljs-params">id</span> =&gt;</span> {
+    theia.window.onDidCloseTerminal(<span class="hljs-keyword">async</span> (term) =&gt; {
+        <span class="hljs-keyword">const</span> currentId = <span class="hljs-keyword">await</span> term.processId;
+        <span class="hljs-keyword">if</span> (currentId === id) {
+            <span class="hljs-built_in">console</span>.log(<span class="hljs-string">"Terminal closed."</span>, id);
+        }
+    }, id);
+});</code></pre>
+				<h4 id="preference-api">Preference API</h4>
+				<p>Preference API allows one to read or update User&#39;s and Workspace&#39;s preferences.</p>
+				<p>To get preferences:</p>
+				<pre><code class="language-typescript"><span class="hljs-comment">// editor preferences</span>
+<span class="hljs-keyword">const</span> preferences = theia.workspace.getConfiguration(<span class="hljs-string">'editor'</span>);
+
+<span class="hljs-comment">// retrieving values</span>
+<span class="hljs-keyword">const</span> fontSize = preferences.get(<span class="hljs-string">'tabSize'</span>);</code></pre>
+				<p>To change preference:</p>
+				<pre><code class="language-typescript">preferences.onDidChangeConfiguration(<span class="hljs-function"><span class="hljs-params">e</span> =&gt;</span> {
+    <span class="hljs-keyword">if</span> (e.affectsConfiguration(<span class="hljs-string">'editor.tabSize'</span>)) {
+        <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Property "editor.tabSize" is changed'</span>);
+    }
+});
+
+preferences.update(<span class="hljs-string">'tabSize'</span>, <span class="hljs-number">2</span>);</code></pre>
+				<h3 id="languages-api">Languages API</h3>
+				<h4 id="diagnostics">Diagnostics</h4>
+				<p>To get all existing diagnostics one should use <code>getDiagnostics</code> call. If diagnostics are needed for specific URI they could be obtain with following call:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> diagnostics = theia.languages.getDiagnostics(uriToResource)</code></pre>
+				<p>To get all diagnostics use:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> diagnostics =  theia.languages.getDiagnostics()</code></pre>
+				<p>For example, following code will get diagnostics for current file in the editor (supposed one is already opened):</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> diagnosticsForCurrentFile = theia.languages.getDiagnostics(theia.window.activeTextEditor.document.uri)</code></pre>
+				<p>If no diagnostics found empty array will be returned.</p>
+				<p>Note, that returned array from <code>getDiagnostics</code> call are readonly.</p>
+				<p>To tracks changes in diagnostics <code>onDidChangeDiagnostics</code> event should be used. Within event handler list of uris with changed diadgnostics is available. Example:</p>
+				<pre><code class="language-typescript">disposables.push(
+    theia.languages.onDidChangeDiagnostics(<span class="hljs-function">(<span class="hljs-params">event: theia.DiagnosticChangeEvent</span>) =&gt;</span> {
+        <span class="hljs-comment">// handler code here</span>
+    }
+);</code></pre>
+				<p>Also it is possible to add own diagnostics. To do this, one should create diagnostics collection first:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> diagnosticsCollection = theia.languages.createDiagnosticCollection(collectionName);</code></pre>
+				<p>Collection name can be ommited. In such case the name will be auto-generated.</p>
+				<p>When collection is created, one could operate with diagnostics. The collection object exposes all needed methods: <code>get</code>, <code>set</code>, <code>has</code>, <code>delete</code>, <code>clear</code>, <code>forEach</code> and <code>dispose</code>.</p>
+				<p><code>get</code>, <code>has</code> and <code>delete</code> performs corresponding operation by given resource uri. <code>clear</code> removes all diagnostics for all uris in the collection.</p>
+				<p>Behavior of <code>set</code> is more complicated. To replace all diagnostics for given uri the following call should be used:</p>
+				<pre><code class="language-typescript">diagnosticsCollection.set(uri, newDiagnostics)</code></pre>
+				<p>if <code>undefined</code> is passed instead of diagnostics array the call will clear diagnostics for given uri in this collection (the same as <code>delete</code>).
+				Also it is possible to set all diagnostics at once (it will replace existed ones). To do this, array of tuples in format <code>[uri, diagnostics]</code> should be passed as argument for <code>set</code>:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> changes: [Uri, Diagnostic[] | <span class="hljs-literal">undefined</span>][] = [];
+
+changes.push([uri1, diagnostics1]);
+changes.push([uri2, diagnostics2]);
+changes.push([uri3, <span class="hljs-literal">undefined</span>]);
+changes.push([uri1, diagnostics4]); <span class="hljs-comment">// uri1 again</span>
+
+diagnosticsCollection.set(changes);</code></pre>
+				<p>If the same uri is used a few times, corresponding diagnostics will be merged. In case of <code>undefined</code> all previous, but not following, diagnostics will be cleared. If <code>undefined</code> is given insted of tuples array the whole collection will be cleared.</p>
+				<p>To iterate over all diagnostics within the collection <code>forEach</code> method could be used:</p>
+				<pre><code class="language-typescript">diagnosticsCollection.forEach(<span class="hljs-function">(<span class="hljs-params">uri, diagnostics</span>) =&gt;</span> {
+    <span class="hljs-comment">// code here</span>
+}</code></pre>
+				<p><code>dispose</code> method should be used when the collection is not needed any more. In case of attempt to do an operaton after disposing an error will be thrown.</p>
+				<h4 id="signature-help">Signature help</h4>
+				<p>To provide signature help form plugin it is required to register provider. For registration 3 items are needed:</p>
 				<ul>
-					<li>Fork the repository and <a href="doc/Developing.md#quick-start">run the examples from source</a></li>
-					<li>Get familiar with <a href="doc/Developing.md">the development workflow</a>, <a href="https://github.com/theia-ide/theia/wiki/Coding-Guidelines">Coding Guidelines</a>, <a href="CODE_OF_CONDUCT.md">Code of Conduct</a> and <a href="CONTRIBUTING.md#sign-your-work">learn how to sign your work</a></li>
-					<li>Find an issue to work on and submit a pull request<ul>
-							<li>First time contributing to open source? Pick a <a href="https://github.com/theia-ide/theia/labels/good%20first%20issue">good first issue</a> to get you familiar with GitHub contributing process.</li>
-							<li>First time contributing to Theia? Pick a <a href="https://github.com/theia-ide/theia/labels/beginners">beginner friendly issue</a> to get you familiar with codebase and our contributing process.</li>
-							<li>Want to become a Committer? Solve an issue showing that you understand Theia objectives and architecture. <a href="https://github.com/theia-ide/theia/labels/help%20wanted">Here</a> is a good list to start.</li>
-						</ul>
-					</li>
-					<li>Could not find an issue? Look for bugs, typos, and missing features.</li>
+					<li>Documents selector to describe for which files it should be applied</li>
+					<li>Handler which will do the work</li>
+					<li>Trigger characters after typing of which the handler should be invoked. Often symbols <code>(</code> and <code>,</code> are used.</li>
 				</ul>
-				<h2 id="feedback">Feedback</h2>
-				<p>Read below how to engage with Theia community:</p>
+				<p>Example of signature help provider registration:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> documentsSelector: theia.DocumentSelector = { scheme: <span class="hljs-string">'file'</span>, language: <span class="hljs-string">'typescript'</span> };
+<span class="hljs-keyword">const</span> handler = { provideSignatureHelp: signatureHelpHandler };
+<span class="hljs-keyword">const</span> triggerChars = <span class="hljs-string">'(,'</span>;
+
+<span class="hljs-keyword">const</span> disposable = theia.languages.registerSignatureHelpProvider(documentsSelector, handler, ...triggerChars);
+
+...
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">signatureHelpHandler</span>(<span class="hljs-params"><span class="hljs-built_in">document</span>: theia.TextDocument, position: theia.Position</span>): <span class="hljs-title">theia</span>.<span class="hljs-title">ProviderResult</span>&lt;<span class="hljs-title">theia</span>.<span class="hljs-title">SignatureHelp</span>&gt; </span>{
+    <span class="hljs-comment">// code here</span>
+}</code></pre>
+				<p>Example of signature information:</p>
+				<pre><code class="language-typescript">{
+    activeSignature: <span class="hljs-number">0</span>,
+    activeParameter: <span class="hljs-number">0</span>,
+    signatures: [
+        {
+            label: <span class="hljs-string">'functionName(param1: number, param2: string, param3: boolean)'</span>,
+            documentation: <span class="hljs-keyword">new</span> theia.MarkdownString(<span class="hljs-string">'What **this** function does'</span>),
+            parameters: [
+                {
+                    label: <span class="hljs-string">'param1: number'</span>,
+                    documentation: <span class="hljs-keyword">new</span> theia.MarkdownString(<span class="hljs-string">'Some number. Should not be `undefined`'</span>)
+                },
+                {
+                    label: <span class="hljs-string">'param2: string'</span>,
+                    documentation: <span class="hljs-string">'Some string'</span>
+                },
+                {
+                    label: <span class="hljs-string">'param3: boolean'</span>,
+                    documentation: <span class="hljs-string">'Some flag'</span>
+                }
+            ]
+        }
+    ]
+}</code></pre>
+				<p>Note, that:</p>
 				<ul>
-					<li>Join the discussion on <a href="https://gitter.im/theia-ide/theia">Gitter</a>.</li>
-					<li>Ask a question, request a new feature and file a bug with <a href="https://github.com/theia-ide/theia/issues/new">GitHub issues</a>.</li>
-					<li>Star the repository to show your support.</li>
-					<li>Follow Theia on <a href="https://twitter.com/theia_ide">Twitter</a>.</li>
+					<li><code>activeSignature</code> and <code>activeParameter</code> are zero based.</li>
+					<li>label is usually full method signature.</li>
+					<li>for documentation fields markdown partially supported (Tags aren&#39;t supported).</li>
+					<li>label of a parameter should be substring of the signature label. In such case the substring will be highlighted in main label when parameter is active. Otherwise has no effect.</li>
 				</ul>
-				<h2 id="roadmap">Roadmap</h2>
-				<p>During the first half of 2018, the team is focusing on the following features:</p>
-				<ul>
-					<li><p><strong>Debugging</strong> </p>
-						<p>A visual debugger leveraging the Debug Server Protocol defined by the VS Code team.</p>
-					</li>
-					<li><p><strong>Workbench Improvements</strong></p>
-						<p>Theia&#39;s workbench shell will be improved, such that the user can drag and drop widgets from the side bar to the main area and vice-versa.</p>
-					</li>
-					<li><p><strong>Search</strong></p>
-						<p>Theia already can search files by name (<kbd>CMD</kbd> + <kbd>P</kbd>). In early 2018 a full text search shall be developed and added.</p>
-					</li>
-					<li><p><strong>More Git Support</strong></p>
-						<p>In addition to the already present commit staging view, the team will add a git history and git diff view to better visualize the different states of git repositories. </p>
-					</li>
-					<li><p><strong>Navigator Improvements</strong></p>
-						<p>The file navigator shall support decorations, which are to be used by the git and the problems view extensions. It will allow to signal on a file whether there are git changes resp. diagnostics.</p>
-					</li>
-					<li><p><strong>Better Markdown Support</strong> </p>
-						<p>The Markdown support shall be improved to allow better preview that syncs scrolling. Also rendering plug-ins based on <code>markdown-it</code> shall be supported and tools like linters and dead link checkers shall be integrated.</p>
-					</li>
-					<li><p><strong>Robustness and Improved UX</strong>
-						We will further work on simplifying Theia and its UI / UX, improve the performance and keep working on bug reports that are rolling in.</p>
-					</li>
-					<li><p><strong>More</strong></p>
-						<p>Any contributors might want to work on additional things. At least this happened in 2017 and is likely to increase with a growing community. :) </p>
-					</li>
-				</ul>
-				<h2 id="license">License</h2>
-				<p><a href="LICENSE">Apache-2.0</a></p>
+				<p>When signature help popup is shown then the handler will be invoked on each parameter edit or even cursor moving inside signature. If you have large objects it would be wise to cache them of at least reuse some parts.</p>
+				<p>To hide your popup just return <code>undefined</code> from provider.</p>
+				<p>In case if a few providers are registered the chain will be executed until one of the providers returns result. Next providers will be ignored for the call.</p>
+				<h4 id="hover-message">Hover Message</h4>
+				<p>To contribute a hover it is only needed to provide a function that can be called with a <code>TextDocument</code> and a <code>Position</code> returning hover info. Registration is done using a document selector which either a language id (&#39;typescript&#39;, &#39;javascript&#39; etc.) or a more complex filter like <code>{scheme: &#39;file&#39;, language: &#39;typescript&#39;}</code>.</p>
+				<p>For example,</p>
+				<pre><code class="language-typescript">theia.languages.registerHoverProvider(<span class="hljs-string">'typescript'</span>, {
+    provideHover(doc: theia.TextDocument, position: theia.Position) {
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> theia.Hover(<span class="hljs-string">'Hover for all **typescript** files.'</span>);
+    }
+});</code></pre>
+				<p>will show the hover message for all <code>typescript</code> files.</p>
+				<p>The code below puts word under cursor into hover message:</p>
+				<pre><code class="language-typescript">theia.languages.registerHoverProvider({scheme: <span class="hljs-string">'file'</span>}, {
+    provideHover(doc: theia.TextDocument, position: theia.Position) {
+        <span class="hljs-keyword">const</span> range = doc.getWordRangeAtPosition(position);
+        <span class="hljs-keyword">const</span> text = doc.getText(range);
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> theia.Hover(text);
+    }
+});</code></pre>
+				<h4 id="definition-provider">Definition provider</h4>
+				<p>It is possible to provide definition source for a symbol from within plugin.
+				To do this one should register corresponding provider. For example:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> documentsSelector: theia.DocumentSelector = { scheme: <span class="hljs-string">'file'</span>, language: <span class="hljs-string">'typescript'</span> };
+<span class="hljs-keyword">const</span> handler: theia.DefinitionProvider = { provideDefinition: provideDefinitionHandler };
+
+<span class="hljs-keyword">const</span> disposable = theia.languages.registerDefinitionProvider(documentsSelector, handler);
+
+...
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">provideDefinitionHandler</span>(<span class="hljs-params"><span class="hljs-built_in">document</span>: theia.TextDocument, position: theia.Position</span>): <span class="hljs-title">theia</span>.<span class="hljs-title">ProviderResult</span>&lt;<span class="hljs-title">theia</span>.<span class="hljs-title">Definition</span> | <span class="hljs-title">theia</span>.<span class="hljs-title">DefinitionLink</span>[]&gt; </span>{
+    <span class="hljs-comment">// code here</span>
+}</code></pre>
+				<p>The handler will be invoked each time when a user executes <code>Go To Definition</code> command.
+				It is possible to return a few sources, but for most cases only one is enough. Return <code>undefined</code> to provide nothing.</p>
+				<h4 id="document-link-provider">Document Link Provider</h4>
+				<p>A document link provider allows to add a custom link detection logic.</p>
+				<p>Example of document link provider registration:</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> documentsSelector: theia.DocumentSelector = { scheme: <span class="hljs-string">'file'</span>, language: <span class="hljs-string">'typescript'</span> };
+<span class="hljs-keyword">const</span> provider = { provideDocumentLinks: provideLinks };
+
+<span class="hljs-keyword">const</span> disposable = theia.languages.registerDocumentLinkProvider(documentsSelector, provider);
+
+...
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">provideLinks</span>(<span class="hljs-params"><span class="hljs-built_in">document</span>: theia.TextDocument</span>): <span class="hljs-title">theia</span>.<span class="hljs-title">ProviderResult</span>&lt;<span class="hljs-title">theia</span>.<span class="hljs-title">DocumentLink</span>&gt; </span>{
+    <span class="hljs-comment">// code here</span>
+}</code></pre>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
@@ -157,8 +399,29 @@
 					<li class="globals  ">
 						<a href="globals.html"><em>Globals</em></a>
 					</li>
-					<li class=" tsd-kind-external-module">
-						<a href="modules/_theia_d_.html">"theia.d"</a>
+					<li class=" tsd-kind-module tsd-is-not-exported">
+						<a href="modules/__theia_plugin_.html">"@theia/plugin"</a>
+					</li>
+					<li class=" tsd-kind-module tsd-parent-kind-module">
+						<a href="modules/__theia_plugin_.commands.html">"@theia/plugin".commands</a>
+					</li>
+					<li class=" tsd-kind-module tsd-parent-kind-module">
+						<a href="modules/__theia_plugin_.debug.html">"@theia/plugin".debug</a>
+					</li>
+					<li class=" tsd-kind-module tsd-parent-kind-module">
+						<a href="modules/__theia_plugin_.env.html">"@theia/plugin".env</a>
+					</li>
+					<li class=" tsd-kind-module tsd-parent-kind-module">
+						<a href="modules/__theia_plugin_.languages.html">"@theia/plugin".languages</a>
+					</li>
+					<li class=" tsd-kind-module tsd-parent-kind-module">
+						<a href="modules/__theia_plugin_.plugins.html">"@theia/plugin".plugins</a>
+					</li>
+					<li class=" tsd-kind-module tsd-parent-kind-module">
+						<a href="modules/__theia_plugin_.window.html">"@theia/plugin".window</a>
+					</li>
+					<li class=" tsd-kind-module tsd-parent-kind-module">
+						<a href="modules/__theia_plugin_.workspace.html">"@theia/plugin".workspace</a>
 					</li>
 				</ul>
 			</nav>
@@ -169,7 +432,7 @@
 		</div>
 	</div>
 </div>
-<footer class="with-border-bottom">
+<footer>
 	<div class="container">
 		<h2>Legend</h2>
 		<div class="tsd-legend-group">
@@ -228,9 +491,6 @@
 		</div>
 	</div>
 </footer>
-<div class="container tsd-generator">
-	<p>Generated using <a href="http://typedoc.org/" target="_blank">TypeDoc</a></p>
-</div>
 <div class="overlay"></div>
 <script src="assets/js/main.js"></script>
 <script>if (location.protocol == 'file:') document.write('<script src="assets/js/search.js"><' + '/script>');</script>
